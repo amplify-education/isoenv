@@ -20,7 +20,7 @@ setup(
     entry_points={
         'console_scripts': [
             'in_env = isoenv:in_env_main',
-            'isoenv = isoenv:compile_main',
+            'isoenv = isoenv:isoenv_main',
         ]
     }
 )
