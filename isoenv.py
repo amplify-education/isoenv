@@ -97,6 +97,11 @@ def map_files(sources, dest, environment, excluded=EXCLUDED_FILES):
 
     for source in sources:
         for dirpath, dirnames, filenames in walk_with_exclusions(source, excluded):
+            # Ensure that we visit ENV_DIR last, so that it overrides non-env-specific files
+            if ENV_DIR in dirnames:
+                dirnames.remove(ENV_DIR)
+                dirnames.append(ENV_DIR)
+
             dest_dir = os.path.join(dest, dirpath.replace(source, '').replace(environment_id, '').lstrip('/'))
             if ENV_DIR in dest_dir:
                 continue

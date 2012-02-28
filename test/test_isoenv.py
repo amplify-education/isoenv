@@ -73,8 +73,18 @@ def mock_filesystem(fs_dict):
     def walk(top):
         def _walk(fs, path):
             if isdict(fs):
-                dirs = [name for (name, contents) in fs.items() if isdict(contents)]
-                files = [name for (name, contents) in fs.items() if not isdict(contents)]
+                dirs = sorted(
+                    name
+                    for (name, contents)
+                    in fs.items()
+                    if isdict(contents))
+
+                files = sorted(
+                    name
+                    for (name, contents)
+                    in fs.items()
+                    if not isdict(contents))
+
                 yield (path, dirs, files)
                 for dir in dirs:
                     for (p, d, f) in _walk(fs[dir], os.path.join(path, dir)):
@@ -244,3 +254,20 @@ def test_compile_deletes_non_git():
         compile(sources, os.path.join(basedir, 'dest'), 'env', False)
         assert os.path.exists(os.path.join(basedir, 'dest', '.git', 'git_contents'))
         assert not os.path.exists(os.path.join(basedir, 'dest', 'etc', 'subdir', 'not_git_contents'))
+
+def test_etc_shadow():
+    contents = {
+        'bcfg2/ops_private/Cfg/ENVIRONMENT_SPECIFIC/staging/etc/shadow/shadow': 'staging',
+        'bcfg2/ops_private/Cfg/ENVIRONMENT_SPECIFIC/production/etc/shadow/shadow': 'production',
+        'bcfg2/ops_private/Cfg/etc/shadow/shadow': 'dev'
+    }
+    file_dict = paths_to_fs_dict(contents)
+ 
+    @mock_filesystem(file_dict)
+    def get_file_map(env):
+        return map_files(['bcfg2/ops_private'], '', env)
+
+    for env in ['staging', 'production', 'dev']:
+        file_map = get_file_map(env)
+        print file_map
+        assert_equals(env, contents[file_map['Cfg/etc/shadow/shadow']])
