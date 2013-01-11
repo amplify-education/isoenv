@@ -16,7 +16,12 @@ setup(
         'argparse',
         'nose',
     ],
-    tests_require=['mock==0.6.0', 'decorator'],
+    tests_require=[
+        'mock',
+        'decorator',
+        'pep8',
+        'pylint',
+    ],
     entry_points={
         'console_scripts': [
             'in_env = isoenv:in_env_main',
