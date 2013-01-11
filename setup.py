@@ -15,6 +15,7 @@ setup(
     install_requires=[
         'argparse',
         'nose',
+        'decorator',
     ],
     tests_require=[
         'mock',
