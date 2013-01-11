@@ -48,7 +48,8 @@ ENV_DIR = 'ENVIRONMENT_SPECIFIC'
 EXCLUDED_FILES = ['.git']
 
 
-def compile_directories(sources, dest, environment, dryrun=False, excluded=None):
+def compile_directories(sources, dest, environment,
+                        dryrun=False, excluded=None):
     '''
     Compiles from the listed sources to the directory dest,
     using the specified environment
@@ -100,12 +101,16 @@ def map_files(sources, dest, environment, excluded=None):
 
     for source in sources:
         for dirpath, dirnames, filenames in walk_with_exclusions(source, excluded):
-            # Ensure that we visit ENV_DIR last, so that it overrides non-env-specific files
+            # Ensure that we visit ENV_DIR last, so that it overrides
+            # non-env-specific files
             if ENV_DIR in dirnames:
                 dirnames.remove(ENV_DIR)
                 dirnames.append(ENV_DIR)
 
-            dest_dir = os.path.join(dest, dirpath.replace(source, '').replace(environment_id, '').lstrip('/'))
+            dest_dir = os.path.join(
+                dest,
+                dirpath.replace(source, '').replace(environment_id, '').lstrip('/')
+            )
             if ENV_DIR in dest_dir:
                 continue
             else:
@@ -113,7 +118,8 @@ def map_files(sources, dest, environment, excluded=None):
                     dest_file = os.path.normpath(os.path.join(dest_dir, filename))
                     src_file = os.path.normpath(os.path.join(dirpath, filename))
                     if dest_file in file_map:
-                        log.warning("{dest} has multiple sources, overriding {old_src} with {new_src}".format(
+                        fmt = "{dest} has multiple sources, overriding {old_src} with {new_src}"
+                        log.warning(fmt.format(
                             dest=dest_file,
                             old_src=file_map[dest_file],
                             new_src=src_file
@@ -203,8 +209,10 @@ def setup_logging(args, fmt):
 
 
 def isoenv_main(args=sys.argv[1:]):
-    parser = ArgumentParser(description="Compile a set of source directories containing environment specific "
-                            "files into a single output repository with only the files for the specified environment")
+    parser = ArgumentParser(
+        description="Compile a set of source directories containing environment specific "
+                    "files into a single output repository with only the files for "
+                    "the specified environment")
     parser.add_argument("--sources", nargs='+', metavar='source', required='true')
     parser.add_argument("--environment", required='true')
     parser.add_argument("dest")
