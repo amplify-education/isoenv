@@ -14,3 +14,5 @@ script:
   - pylint --rcfile=pylint.rc *.py test/*.py
   - nosetests test/
 
+# Force travis-ci build
+
