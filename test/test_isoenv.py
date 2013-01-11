@@ -1,3 +1,5 @@
+
+
 # This file is part of isoenv
 #
 # Copyright (c) 2012 Wireless Generation, Inc.
@@ -26,7 +28,7 @@ from contextlib import contextmanager
 from tempfile import mkdtemp
 from shutil import rmtree
 from os import mkdir
-from itertools import combinations
+from itertools import combinations, ifilter
 import json
 
 from mock import patch
@@ -39,7 +41,7 @@ def fake_isdir(paths):
     paths = [os.path.realpath(path) for path in paths]
 
     def isdir(path):
-        print path, paths
+        print(path, paths)
         return os.path.realpath(path) in paths
     return isdir
 
@@ -49,8 +51,8 @@ def isdict(thing):
 
 
 def fake_map_directory(file_structure):
-    def flatten(dir):
-        for name, contents in dir.iteritems():
+    def flatten(src_dir):
+        for name, contents in list(src_dir.items()):
             if isdict(contents):
                 for path, file_contents in flatten(contents):
                     yield os.path.join(name, path), file_contents
@@ -67,12 +69,8 @@ def fake_map_directory(file_structure):
 
 def mock_filesystem(fs_dict):
     def contents(path, fs=fs_dict):
-        segs = path.split('/')
-        segs = [seg for seg in segs if seg != '']
-        if len(segs) > 1:
-            return contents('/'.join(segs[1:]), fs[segs[0]])
-        else:
-            return fs[segs[0]]
+        segs = list(ifilter(None, path.split('/')))
+        return contents('/'.join(segs[1:]), fs[segs[0]]) if len(segs) > 1 else fs[segs[0]]
 
     def isdir(path):
         return isdict(contents(path))
@@ -83,18 +81,18 @@ def mock_filesystem(fs_dict):
                 dirs = sorted(
                     name
                     for (name, contents)
-                    in fs.items()
+                    in list(fs.items())
                     if isdict(contents))
 
                 files = sorted(
                     name
                     for (name, contents)
-                    in fs.items()
+                    in list(fs.items())
                     if not isdict(contents))
 
                 yield (path, dirs, files)
-                for dir in dirs:
-                    for (p, d, f) in _walk(fs[dir], os.path.join(path, dir)):
+                for dirname in dirs:
+                    for (p, d, f) in _walk(fs[dirname], os.path.join(path, dirname)):
                         yield (p, d, f)
         try:
             for (p, d, f) in _walk(contents(top), top):
@@ -114,7 +112,7 @@ def mock_filesystem(fs_dict):
 
 def paths_to_fs_dict(paths):
     fs = {}
-    for (path, content) in paths.items():
+    for (path, content) in list(paths.items()):
         segs = path.split('/')
         cur_dir = fs
         for seg in segs[:-1]:
@@ -130,7 +128,7 @@ def paths_to_fs_dict(paths):
 @contextmanager
 def setup_temp_dir(fs_dict):
     def write(base_dir, fs_dict):
-        for name, contents in fs_dict.items():
+        for name, contents in list(fs_dict.items()):
             file_path = os.path.join(base_dir, name)
             if isdict(contents):
                 mkdir(file_path)
@@ -200,18 +198,19 @@ def test_overrides_in_common_files():
 
 
 def check_override(src_path, overriding_path,
-                   sources=['repo/public', 'repo/ops_private'], dest='dest', env='env'):
+                   sources=None, dest='dest', env='env'):
+    sources = sources or ['repo/public', 'repo/ops_private']
     fs = paths_to_fs_dict({src_path: 'overridden', overriding_path: 'overriding'})
-    print fs
+    print(fs)
 
     @mock_filesystem(fs)
     def get_file_map():
         return map_files(sources, dest, env)
 
     file_map = get_file_map()
-    print file_map
+    print(file_map)
 
-    assert_equals([overriding_path], file_map.values())
+    assert_equals([overriding_path], list(file_map.values()))
 
 
 def test_compile_writes_file_manifest():
@@ -283,5 +282,5 @@ def test_etc_shadow():
 
     for env in ['staging', 'production', 'dev']:
         file_map = get_file_map(env)
-        print file_map
+        print(file_map)
         assert_equals(env, contents[file_map['Cfg/etc/shadow/shadow']])

@@ -11,5 +11,8 @@ install:
     - pip install -r requirements_test.txt
 
 script:
+  - pep8 --ignore=E501 *.py test/*.py
+  - pylint --rcfile=pylint.rc *.py test/*.py
+  - pyflakes *.py test/*.py
   - nosetests test/
 

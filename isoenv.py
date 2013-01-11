@@ -67,13 +67,14 @@ def compile_directories(sources, dest, environment,
     # However, we still want to run copy_files so that the relevant logging
     # and screen output can happen
     if not dryrun:
-        directories = []
         for path in list_directory(dest, excluded):
             remove(path)
 
-        for (dirpath, dirnames, _) in walk_with_exclusions(dest, excluded):
-            for dirname in dirnames:
-                directories.append(os.path.join(dirpath, dirname))
+        directories = [
+            os.path.join(dirpath, dirname)
+            for (dirpath, dirnames, _) in walk_with_exclusions(dest, excluded)
+            for dirname in dirnames
+        ]
 
         def directory_depth(src_dir):
             return len(src_dir.split('/'))
@@ -135,7 +136,7 @@ def copy_files(file_map, dryrun=False):
     File_map is a dictionary mapping dest to source.
     '''
 
-    for dest, source in file_map.iteritems():
+    for dest, source in list(file_map.items()):
         if not dryrun:
             try:
                 makedirs(os.path.dirname(dest))
