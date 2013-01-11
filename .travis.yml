@@ -12,6 +12,5 @@ install:
 script:
   - pep8 --ignore=E501 *.py test/*.py
   - pylint --rcfile=pylint.rc *.py test/*.py
-  - pyflakes *.py test/*.py
   - nosetests test/
 

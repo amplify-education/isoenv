@@ -22,7 +22,6 @@ setup(
         'decorator',
         'pep8',
         'pylint',
-        'pyflakes',
     ],
     entry_points={
         'console_scripts': [
