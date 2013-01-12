@@ -28,7 +28,7 @@ from contextlib import contextmanager
 from tempfile import mkdtemp
 from shutil import rmtree
 from os import mkdir
-from itertools import combinations, ifilter
+from itertools import combinations
 import json
 
 from mock import patch
@@ -69,7 +69,7 @@ def fake_map_directory(file_structure):
 
 def mock_filesystem(fs_dict):
     def contents(path, fs=fs_dict):
-        segs = list(ifilter(None, path.split('/')))
+        segs = list(filter(None, path.split('/')))
         return contents('/'.join(segs[1:]), fs[segs[0]]) if len(segs) > 1 else fs[segs[0]]
 
     def isdir(path):
