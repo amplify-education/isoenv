@@ -1,26 +1,26 @@
 #! /usr/bin/env python
 
-#This file is part of isoenv
+# This file is part of isoenv
 #
-#Copyright (c) 2012 Wireless Generation, Inc.
+# Copyright (c) 2012 Wireless Generation, Inc.
 #
-#Permission is hereby granted, free of charge, to any person obtaining a copy
-#of this software and associated documentation files (the "Software"), to deal
-#in the Software without restriction, including without limitation the rights
-#to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-#copies of the Software, and to permit persons to whom the Software is
-#furnished to do so, subject to the following conditions:
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-#The above copyright notice and this permission notice shall be included in
-#all copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-#THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 
 '''Testing a doc string'''
 
@@ -48,12 +48,14 @@ ENV_DIR = 'ENVIRONMENT_SPECIFIC'
 EXCLUDED_FILES = ['.git']
 
 
-def compile(sources, dest, environment, dryrun=False, excluded=EXCLUDED_FILES):
+def compile_directories(sources, dest, environment,
+                        dryrun=False, excluded=None):
     '''
     Compiles from the listed sources to the directory dest,
     using the specified environment
     '''
 
+    excluded = excluded or EXCLUDED_FILES
     file_map = map_files(
         sources,
         dest,
@@ -65,19 +67,20 @@ def compile(sources, dest, environment, dryrun=False, excluded=EXCLUDED_FILES):
     # However, we still want to run copy_files so that the relevant logging
     # and screen output can happen
     if not dryrun:
-        directories = []
         for path in list_directory(dest, excluded):
             remove(path)
-    
-        for (dirpath, dirnames, filenames) in walk_with_exclusions(dest, excluded):
-            for dir in dirnames:
-                directories.append(os.path.join(dirpath, dir))
 
-        def directory_depth(dir):
-            return len(dir.split('/'))
+        directories = [
+            os.path.join(dirpath, dirname)
+            for (dirpath, dirnames, _) in walk_with_exclusions(dest, excluded)
+            for dirname in dirnames
+        ]
 
-        for dir in sorted(directories, key=directory_depth, reverse=True):
-            os.rmdir(dir)
+        def directory_depth(src_dir):
+            return len(src_dir.split('/'))
+
+        for src_dir in sorted(directories, key=directory_depth, reverse=True):
+            os.rmdir(src_dir)
 
     copy_files(file_map, dryrun)
     etc_dir = os.path.join(dest, 'etc')
@@ -86,23 +89,29 @@ def compile(sources, dest, environment, dryrun=False, excluded=EXCLUDED_FILES):
     with open(os.path.join(etc_dir, 'mapped_files.json'), 'w') as file_log:
         json.dump(file_map, file_log, sort_keys=True, indent=4)
 
-def map_files(sources, dest, environment, excluded=EXCLUDED_FILES):
+
+def map_files(sources, dest, environment, excluded=None):
     '''
     Generates a map of destination path -> source path for all files
     that should be compiled from repo to dest, given the environment
     '''
     file_map = {}
+    excluded = excluded or EXCLUDED_FILES
 
     environment_id = os.path.join(ENV_DIR, environment)
 
     for source in sources:
         for dirpath, dirnames, filenames in walk_with_exclusions(source, excluded):
-            # Ensure that we visit ENV_DIR last, so that it overrides non-env-specific files
+            # Ensure that we visit ENV_DIR last, so that it overrides
+            # non-env-specific files
             if ENV_DIR in dirnames:
                 dirnames.remove(ENV_DIR)
                 dirnames.append(ENV_DIR)
 
-            dest_dir = os.path.join(dest, dirpath.replace(source, '').replace(environment_id, '').lstrip('/'))
+            dest_dir = os.path.join(
+                dest,
+                dirpath.replace(source, '').replace(environment_id, '').lstrip('/')
+            )
             if ENV_DIR in dest_dir:
                 continue
             else:
@@ -110,14 +119,16 @@ def map_files(sources, dest, environment, excluded=EXCLUDED_FILES):
                     dest_file = os.path.normpath(os.path.join(dest_dir, filename))
                     src_file = os.path.normpath(os.path.join(dirpath, filename))
                     if dest_file in file_map:
-                        log.warning("{dest} has multiple sources, overriding {old_src} with {new_src}".format(
-                            dest = dest_file,
-                            old_src = file_map[dest_file],
-                            new_src = src_file
+                        fmt = "{dest} has multiple sources, overriding {old_src} with {new_src}"
+                        log.warning(fmt.format(
+                            dest=dest_file,
+                            old_src=file_map[dest_file],
+                            new_src=src_file
                         ))
                     file_map[dest_file] = src_file
 
     return file_map
+
 
 def copy_files(file_map, dryrun=False):
     '''
@@ -125,7 +136,7 @@ def copy_files(file_map, dryrun=False):
     File_map is a dictionary mapping dest to source.
     '''
 
-    for dest, source in file_map.iteritems():
+    for dest, source in list(file_map.items()):
         if not dryrun:
             try:
                 makedirs(os.path.dirname(dest))
@@ -135,8 +146,9 @@ def copy_files(file_map, dryrun=False):
                 pass
             copy2(source, dest)
 
-def walk_with_exclusions(dir, exclusions):
-    for (dirpath, dirnames, filenames) in walk(dir):
+
+def walk_with_exclusions(rootdir, exclusions):
+    for (dirpath, dirnames, filenames) in walk(rootdir):
         for excluded in exclusions:
             if excluded in dirnames:
                 dirnames.remove(excluded)
@@ -144,49 +156,50 @@ def walk_with_exclusions(dir, exclusions):
                 filenames.remove(excluded)
         yield (dirpath, dirnames, filenames)
 
-def list_directory(dir, excluded=EXCLUDED_FILES):
+
+def list_directory(rootdir, excluded=None):
     '''
     Yields paths for all files underneath dir that aren't listed in
     excluded and aren't inside a directory listed in excluded
     '''
-    for (dirpath, dirnames, filenames) in walk_with_exclusions(dir, excluded):
+    excluded = excluded or EXCLUDED_FILES
+    for (dirpath, _, filenames) in walk_with_exclusions(rootdir, excluded):
         for filename in filenames:
             yield os.path.join(dirpath, filename)
 
+
 @contextmanager
 def compiled(sources, environment, dest_dir=None):
-    if dest_dir is None:
-        dest_dir = mkdtemp()
+    dest_dir = dest_dir or mkdtemp()
 
     try:
         log.info("compiling {environment} from {sources} to {dest_dir}".format(
             environment=environment,
             sources=', '.join(sources),
             dest_dir=dest_dir))
-        compile(sources, dest_dir, environment, dryrun=False)
+        compile_directories(sources, dest_dir, environment, dryrun=False)
         log.info("compile complete")
         yield dest_dir
     finally:
         rmtree(dest_dir)
 
+
 def add_logging_args(parser):
     parser.add_argument("-q", "--quiet", dest="quiet",
-                      action="store_true", default=False,
-                      help="Run silently")
+                        action="store_true", default=False,
+                        help="Run silently")
     parser.add_argument("-v", "--verbose", dest="verbose",
-                      action="store_true", default=False,
-                      help="Run verbosely")
+                        action="store_true", default=False,
+                        help="Run verbosely")
     parser.add_argument("-l", "--logging_file", dest="logfile",
-                      action="store",
-                      help="Which file to log to")
+                        action="store",
+                        help="Which file to log to")
 
-def setup_logging(args, format):
-    if args.verbose:
-        loglevel = logging.DEBUG
-    else:
-        loglevel = logging.INFO
 
-    logging_opts = dict(level=loglevel, format=format)
+def setup_logging(args, fmt):
+    loglevel = logging.DEBUG if args.verbose else logging.INFO
+
+    logging_opts = dict(level=loglevel, format=fmt)
 
     if args.logfile:
         logging_opts['filename'] = args.logfile
@@ -197,23 +210,26 @@ def setup_logging(args, format):
 
 
 def isoenv_main(args=sys.argv[1:]):
-    parser = ArgumentParser(description="Compile a set of source directories containing environment specific "
-        "files into a single output repository with only the files for the specified environment")
+    parser = ArgumentParser(
+        description="Compile a set of source directories containing environment specific "
+                    "files into a single output repository with only the files for "
+                    "the specified environment")
     parser.add_argument("--sources", nargs='+', metavar='source', required='true')
     parser.add_argument("--environment", required='true')
     parser.add_argument("dest")
     parser.add_argument("-d", "--dryrun", dest="dryrun",
-                      action="store_true", default=False,
-                      help="Don't modify the destination directory")
+                        action="store_true", default=False,
+                        help="Don't modify the destination directory")
     add_logging_args(parser)
-    
+
     args = parser.parse_args(args)
-    
+
     run_mode = 'live run' if not args.dryrun else 'dry run'
-    format=' - '.join(['%(asctime)s', '%(levelname)s', run_mode, '%(message)s'])
-    setup_logging(args, format)
-   
+    fmt = ' - '.join(['%(asctime)s', '%(levelname)s', run_mode, '%(message)s'])
+    setup_logging(args, fmt)
+
     compile(args.sources, args.dest, args.environment, args.dryrun)
+
 
 def in_env_args():
     parser = ArgumentParser(description="Run a command inside a compiled directory")
