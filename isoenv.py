@@ -269,4 +269,8 @@ def in_env_main(args=sys.argv[1:]):
 
 
 if __name__ == "__main__":
-    sys.exit(isoenv_main(sys.argv[1:]))
+    if "in_env" in sys.argv[0]:
+        main = in_env_main
+    else:
+        main = isoenv_main
+    sys.exit(main(sys.argv[1:]))

@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name="isoenv",
-    version="0.1.1",
+    version="0.1.2",
     description=("Tools for keeping environment specific configuration "
                  "in a single repository, while only deploying the "
                  "configuration for a single environment"),
